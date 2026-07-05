@@ -12,6 +12,7 @@
     --green: #2ecc8f; --red: #ff6b6b; --amber: #f5b942;
     --sneaker: #f56642; --tcg: #b06bf5; --game: #4f8ef7; --hobby: #f5b942; --other: #8b94a7;
     --liquor: #d4a24e; --fashion: #5bc8d6; --gadget: #8bc34a;
+    --chara: #f78fb3; --coin: #9fb4c7;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: var(--bg); color: var(--text); font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; font-size: 14px; }
@@ -51,6 +52,7 @@
   .badge.other { background: var(--other); }
   .badge.liquor { background: var(--liquor); } .badge.fashion { background: var(--fashion); }
   .badge.gadget { background: var(--gadget); }
+  .badge.chara { background: var(--chara); } .badge.coin { background: var(--coin); }
 
   /* 商品カード */
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
@@ -142,6 +144,8 @@
       <option value="liquor">酒</option>
       <option value="fashion">アパレル</option>
       <option value="gadget">時計・ガジェット</option>
+      <option value="chara">ジブリ/ディズニー</option>
+      <option value="coin">記念硬貨</option>
       <option value="other" selected>その他</option>
     </select>
     <label>定価（税込・円）</label>
@@ -177,8 +181,8 @@ const SUPABASE_ANON_KEY = "sb_publishable_v9qtzFSVvH4Pnpz5TPWyCA_anO4JnRy";
 const SUPABASE_ANON_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0c25ya2thcmJzanV2dHZsdmp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyMjU0MTAsImV4cCI6MjA5ODgwMTQxMH0.uXWUasoKKJhA2tAOGLystTbtTo8N3a6a4RgoI6Kz7A0";
 const FEE = 0.10; // メルカリ販売手数料
 
-const CAT_LABEL = { sneaker: "スニーカー", tcg: "トレカ", game: "ゲーム", hobby: "ホビー", liquor: "酒", fashion: "アパレル", gadget: "時計・ガジェット", other: "その他" };
-const CAT_COLOR = { sneaker: "#f56642", tcg: "#b06bf5", game: "#4f8ef7", hobby: "#f5b942", liquor: "#d4a24e", fashion: "#5bc8d6", gadget: "#8bc34a", other: "#8b94a7" };
+const CAT_LABEL = { sneaker: "スニーカー", tcg: "トレカ", game: "ゲーム", hobby: "ホビー", liquor: "酒", fashion: "アパレル", gadget: "時計・ガジェット", chara: "ジブリ/ディズニー", coin: "記念硬貨", other: "その他" };
+const CAT_COLOR = { sneaker: "#f56642", tcg: "#b06bf5", game: "#4f8ef7", hobby: "#f5b942", liquor: "#d4a24e", fashion: "#5bc8d6", gadget: "#8bc34a", chara: "#f78fb3", coin: "#9fb4c7", other: "#8b94a7" };
 
 let candidates = [], products = [], prices = [];
 let candFilter = "all";
@@ -378,7 +382,7 @@ function drawProductChart(p) {
 
 // ---- 新着候補 ----
 function renderCandidates() {
-  const cats = ["all", "sneaker", "tcg", "game", "hobby", "liquor", "fashion", "gadget", "other"];
+  const cats = ["all", "sneaker", "tcg", "game", "hobby", "liquor", "fashion", "gadget", "chara", "coin", "other"];
   document.getElementById("catFilters").innerHTML = cats.map(c => {
     const n = c === "all" ? candidates.length : candidates.filter(x => x.category === c).length;
     return `<button class="chip ${candFilter === c ? "active" : ""}" onclick="setFilter('${c}')">${c === "all" ? "すべて" : CAT_LABEL[c]} (${n})</button>`;
