@@ -18,6 +18,15 @@ const QUERIES = [
   { q: "一番くじ 発売", cat: "hobby" },
   { q: "フィギュア 限定 予約", cat: "hobby" },
   { q: "ゲーム機 抽選 販売", cat: "game" },
+  { q: "遊戯王 予約 抽選", cat: "tcg" },
+  { q: "ワンピースカード 予約 抽選", cat: "tcg" },
+  { q: "ガンプラ 予約 抽選", cat: "hobby" },
+  { q: "ウイスキー 抽選 販売", cat: "liquor" },
+  { q: "日本酒 限定 抽選", cat: "liquor" },
+  { q: "ユニクロ コラボ 発売", cat: "fashion" },
+  { q: "シュプリーム 発売", cat: "fashion" },
+  { q: "G-SHOCK 限定 発売", cat: "gadget" },
+  { q: "腕時計 限定 抽選", cat: "gadget" },
   { q: "抽選販売 受付", cat: "other" },
   { q: "数量限定 発売 予約", cat: "other" },
 ];
@@ -27,6 +36,9 @@ const CATEGORY_RULES: { cat: string; re: RegExp }[] = [
   { cat: "tcg", re: /ポケカ|ポケモンカード|トレカ|遊戯王|ワンピースカード|デュエマ|カードゲーム|TCG|拡張パック/i },
   { cat: "game", re: /Switch|スイッチ|PS5|PlayStation|プレステ|Xbox|ゲーム機|本体.*抽選/i },
   { cat: "hobby", re: /一番くじ|フィギュア|ガンプラ|プラモ|ねんどろいど|figma|ホビー|ぬいぐるみ|グッズ/i },
+  { cat: "liquor", re: /ウイスキー|山崎|白州|響\s|イチローズモルト|日本酒|焼酎|ワイン|スピリッツ|蒸留所|酒/i },
+  { cat: "fashion", re: /ユニクロ|UNIQLO|\bGU\b|Supreme|シュプリーム|アパレル|Tシャツ|パーカー|スウェット/i },
+  { cat: "gadget", re: /G-SHOCK|Gショック|カシオ|CASIO|セイコー|SEIKO|腕時計|イヤホン|ヘッドホン|カメラ|家電/i },
 ];
 
 function decodeEntities(s: string): string {
