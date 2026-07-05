@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>せどりレーダー | 抽選・限定商品 × メルカリ利益トラッカー</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0e1117; --panel: #171c26; --panel2: #1e2533; --border: #2a3245;
+    --text: #e6e9f0; --muted: #8b94a7; --accent: #4f8ef7;
+    --green: #2ecc8f; --red: #ff6b6b; --amber: #f5b942;
+    --sneaker: #f56642; --tcg: #b06bf5; --game: #4f8ef7; --hobby: #f5b942; --other: #8b94a7;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; font-size: 14px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 20px 16px 80px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; margin-bottom: 18px; }
+  header h1 { font-size: 22px; letter-spacing: 1px; }
+  header h1 .logo { color: var(--accent); }
+  #lastUpdate { color: var(--muted); font-size: 12px; }
+  .spacer { flex: 1; }
+
+  .btn { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+         padding: 7px 14px; cursor: pointer; font-size: 13px; transition: 0.15s; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.small { padding: 4px 10px; font-size: 12px; border-radius: 6px; }
+  .btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .btn:disabled { opacity: 0.5; cursor: wait; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 22px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .stat .label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .stat .value { font-size: 24px; font-weight: 700; }
+  .stat .value.green { color: var(--green); } .stat .value.red { color: var(--red); }
+
+  h2 { font-size: 16px; margin: 26px 0 12px; display: flex; align-items: center; gap: 8px; }
+  h2 .count { background: var(--panel2); border-radius: 10px; padding: 1px 9px; font-size: 12px; color: var(--muted); }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+
+  /* カテゴリバッジ */
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #0e1117; }
+  .badge.sneaker { background: var(--sneaker); } .badge.tcg { background: var(--tcg); }
+  .badge.game { background: var(--game); } .badge.hobby { background: var(--hobby); }
+  .badge.other { background: var(--other); }
+
+  /* 商品カード */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .card .name { font-size: 15px; font-weight: 700; line-height: 1.4; }
+  .card .row { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 12px; align-items: center; }
+  .card .profit-line { display: flex; align-items: baseline; gap: 10px; }
+  .card .profit { font-size: 22px; font-weight: 800; }
+  .card .profit.green { color: var(--green); } .card .profit.red { color: var(--red); } .card .profit.na { color: var(--muted); font-size: 15px; }
+  .card .sub { color: var(--muted); font-size: 11px; }
+  .chart-box { background: var(--bg); border-radius: 10px; padding: 8px; height: 170px; }
+  .price-form { display: flex; gap: 6px; align-items: center; }
+  .price-form input[type=number] { width: 110px; }
+  input, select { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 13px; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  .links { display: flex; gap: 10px; font-size: 12px; }
+  .card-actions { display: flex; gap: 6px; justify-content: flex-end; }
+  .deadline { color: var(--amber); font-weight: 600; }
+  .deadline.past { color: var(--red); }
+
+  /* 新着候補 */
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .chip { border: 1px solid var(--border); background: var(--panel2); color: var(--muted); border-radius: 20px; padding: 4px 13px; font-size: 12px; cursor: pointer; }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .cand { display: flex; gap: 10px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--border); }
+  .cand:last-child { border-bottom: none; }
+  .cand .title { flex: 1; line-height: 1.4; }
+  .cand .meta { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .empty { color: var(--muted); text-align: center; padding: 30px 0; }
+
+  /* モーダル */
+  #modalBg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 10; }
+  #modalBg.show { display: flex; }
+  #modal { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 22px; width: min(480px, 92vw); max-height: 88vh; overflow-y: auto; }
+  #modal h3 { margin-bottom: 16px; font-size: 16px; }
+  #modal label { display: block; color: var(--muted); font-size: 12px; margin: 12px 0 4px; }
+  #modal input, #modal select { width: 100%; }
+  #modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+  #modal .hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--accent);
+           border-radius: 10px; padding: 10px 18px; font-size: 13px; display: none; z-index: 20; }
+  .note { color: var(--muted); font-size: 11px; margin-top: 8px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="logo">📡</span> せどりレーダー</h1>
+    <span id="lastUpdate">読込中…</span>
+    <div class="spacer"></div>
+    <button class="btn" id="btnCollect">🔄 いますぐ巡回</button>
+    <button class="btn primary" id="btnAddManual">＋ 手動で商品追加</button>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="label">新着候補（未処理）</div><div class="value" id="stNew">–</div></div>
+    <div class="stat"><div class="label">追跡中の商品</div><div class="value" id="stTracked">–</div></div>
+    <div class="stat"><div class="label">黒字見込みの商品</div><div class="value green" id="stProfitable">–</div></div>
+    <div class="stat"><div class="label">合計見込み利益（各1個）</div><div class="value" id="stTotal">–</div></div>
+  </div>
+
+  <h2>📈 利益サマリー</h2>
+  <div class="panel">
+    <div style="height:220px"><canvas id="overviewChart"></canvas></div>
+    <div class="note">利益 ＝ メルカリ相場（最新SOLD、無ければ出品中）× 0.9（販売手数料10%控除）− 送料 − 定価。各商品の最新観測値ベース。</div>
+  </div>
+
+  <h2>🎯 追跡中の商品 <span class="count" id="cntTracked">0</span></h2>
+  <div class="cards" id="productCards"></div>
+
+  <h2>🆕 新着候補 <span class="count" id="cntNew">0</span></h2>
+  <div class="filters" id="catFilters"></div>
+  <div class="panel" id="candidateList"></div>
+  <div class="note">毎朝 7:00（JST）に Google News を自動巡回して抽選・数量限定・予約商品のニュースを収集。気になる商品は「追跡」でメルカリ利益トラッキング対象に。</div>
+</div>
+
+<div id="modalBg">
+  <div id="modal">
+    <h3 id="modalTitle">商品を追跡</h3>
+    <label>商品名</label>
+    <input id="fName" type="text" placeholder="例: ポケモンカード151 BOX">
+    <label>カテゴリ</label>
+    <select id="fCategory">
+      <option value="sneaker">スニーカー</option>
+      <option value="tcg">トレカ</option>
+      <option value="game">ゲーム</option>
+      <option value="hobby">ホビー・くじ</option>
+      <option value="other" selected>その他</option>
+    </select>
+    <label>定価（税込・円）</label>
+    <input id="fRetail" type="number" placeholder="例: 5400">
+    <label>想定送料（円）</label>
+    <select id="fShipping">
+      <option value="175">175（ネコポス相当）</option>
+      <option value="215">215（ゆうパケット）</option>
+      <option value="455">455（宅急便コンパクト）</option>
+      <option value="750" selected>750（宅急便60）</option>
+      <option value="850">850（宅急便80）</option>
+      <option value="1050">1050（宅急便100）</option>
+    </select>
+    <label>メルカリ検索キーワード</label>
+    <input id="fKeyword" type="text" placeholder="空欄なら商品名を使用">
+    <div class="hint">相場チェックのリンク・検索に使う。型番など具体的なほど精度が上がる。</div>
+    <label>抽選締切 / 発売日（任意）</label>
+    <input id="fDeadline" type="date">
+    <label>メモ（任意）</label>
+    <input id="fMemo" type="text">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn primary" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL = "https://rtsnrkkarbsjuvtvlvjx.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_v9qtzFSVvH4Pnpz5TPWyCA_anO4JnRy";
+// Edge Function (collect) 呼び出し用。anon ロールの公開キー (JWT形式)。秘匿キーではない。
+const SUPABASE_ANON_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0c25ya2thcmJzanV2dHZsdmp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyMjU0MTAsImV4cCI6MjA5ODgwMTQxMH0.uXWUasoKKJhA2tAOGLystTbtTo8N3a6a4RgoI6Kz7A0";
+const FEE = 0.10; // メルカリ販売手数料
+
+const CAT_LABEL = { sneaker: "スニーカー", tcg: "トレカ", game: "ゲーム", hobby: "ホビー", other: "その他" };
+const CAT_COLOR = { sneaker: "#f56642", tcg: "#b06bf5", game: "#4f8ef7", hobby: "#f5b942", other: "#8b94a7" };
+
+let candidates = [], products = [], prices = [];
+let candFilter = "all";
+let charts = {};   // productId -> Chart
+let overviewChart = null;
+let editingProductId = null, trackingCandidate = null;
+
+async function sb(path, opts = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+      ...(opts.headers || {}),
+    },
+  });
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  const txt = await res.text();
+  return txt ? JSON.parse(txt) : null;
+}
+
+function yen(n) { return n == null ? "–" : "¥" + n.toLocaleString("ja-JP"); }
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.style.display = "block";
+  clearTimeout(t._tm); t._tm = setTimeout(() => (t.style.display = "none"), 2500);
+}
+function esc(s) { return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function mercariUrl(kw, sold) {
+  return `https://jp.mercari.com/search?keyword=${encodeURIComponent(kw)}&status=${sold ? "sold_out" : "on_sale"}`;
+}
+
+// ---- 利益計算 ----
+function latestPrice(productId, kind) {
+  const arr = prices.filter(p => p.product_id === productId && p.kind === kind);
+  return arr.length ? arr[arr.length - 1] : null; // prices は noted_at 昇順で取得済み
+}
+function estimate(prod) {
+  const sold = latestPrice(prod.id, "sold");
+  const listing = latestPrice(prod.id, "listing");
+  const base = sold || listing;
+  if (!base || prod.retail_price == null) return { profit: null, basis: null };
+  const profit = Math.floor(base.price * (1 - FEE)) - prod.shipping_cost - prod.retail_price;
+  return { profit, basis: base, rate: prod.retail_price ? profit / prod.retail_price : null };
+}
+function breakEven(prod) {
+  if (prod.retail_price == null) return null;
+  return Math.ceil((prod.retail_price + prod.shipping_cost) / (1 - FEE));
+}
+
+// ---- データ読込 ----
+async function loadAll() {
+  [candidates, products, prices] = await Promise.all([
+    sb("candidates?status=eq.new&order=published_at.desc.nullslast&limit=300"),
+    sb("products?archived=eq.false&order=created_at.desc"),
+    sb("market_prices?order=noted_at.asc&limit=5000"),
+  ]);
+  renderAll();
+}
+
+function renderAll() {
+  renderStats(); renderOverview(); renderProducts(); renderCandidates();
+}
+
+function renderStats() {
+  const ests = products.map(estimate).filter(e => e.profit != null);
+  const profitable = ests.filter(e => e.profit > 0);
+  document.getElementById("stNew").textContent = candidates.length;
+  document.getElementById("stTracked").textContent = products.length;
+  document.getElementById("stProfitable").textContent = profitable.length;
+  const total = profitable.reduce((s, e) => s + e.profit, 0);
+  const el = document.getElementById("stTotal");
+  el.textContent = yen(total);
+  el.className = "value " + (total > 0 ? "green" : "");
+  const latest = candidates.reduce((mx, c) => Math.max(mx, Date.parse(c.fetched_at) || 0), 0);
+  document.getElementById("lastUpdate").textContent = latest
+    ? "最終巡回: " + new Date(latest).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
+    : "候補データなし（いますぐ巡回を押してや）";
+}
+
+// ---- サマリーチャート ----
+function renderOverview() {
+  const withEst = products.map(p => ({ p, e: estimate(p) })).filter(x => x.e.profit != null);
+  const ctx = document.getElementById("overviewChart");
+  if (overviewChart) overviewChart.destroy();
+  overviewChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: withEst.map(x => x.p.name.length > 18 ? x.p.name.slice(0, 18) + "…" : x.p.name),
+      datasets: [{
+        label: "見込み利益（円）",
+        data: withEst.map(x => x.e.profit),
+        backgroundColor: withEst.map(x => x.e.profit > 0 ? "rgba(46,204,143,0.75)" : "rgba(255,107,107,0.75)"),
+        borderRadius: 6,
+      }],
+    },
+    options: {
+      indexAxis: "y", responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => " " + yen(c.raw) } } },
+      scales: {
+        x: { grid: { color: "#2a3245" }, ticks: { color: "#8b94a7", callback: v => "¥" + v.toLocaleString() } },
+        y: { grid: { display: false }, ticks: { color: "#e6e9f0", font: { size: 11 } } },
+      },
+    },
+  });
+}
+
+// ---- 商品カード ----
+function renderProducts() {
+  Object.values(charts).forEach(c => c.destroy()); charts = {};
+  const box = document.getElementById("productCards");
+  document.getElementById("cntTracked").textContent = products.length;
+  if (!products.length) {
+    box.innerHTML = `<div class="empty panel" style="grid-column:1/-1">追跡中の商品なし。新着候補から「追跡」するか、手動で追加してや。</div>`;
+    return;
+  }
+  box.innerHTML = products.map(p => {
+    const e = estimate(p);
+    const be = breakEven(p);
+    const kw = p.mercari_keyword || p.name;
+    let profitHtml;
+    if (e.profit == null) {
+      profitHtml = `<span class="profit na">相場未入力</span>`;
+    } else {
+      const cls = e.profit > 0 ? "green" : "red";
+      const rate = e.rate != null ? ` (${Math.round(e.rate * 100)}%)` : "";
+      profitHtml = `<span class="profit ${cls}">${e.profit > 0 ? "+" : ""}${yen(e.profit)}</span><span class="sub">${e.basis.kind === "sold" ? "SOLD" : "出品中"}相場 ${yen(e.basis.price)} 基準${rate}</span>`;
+    }
+    let dl = "";
+    if (p.deadline) {
+      const days = Math.ceil((new Date(p.deadline) - new Date()) / 86400000);
+      dl = `<span class="deadline ${days < 0 ? "past" : ""}">⏰ ${p.deadline}${days >= 0 ? `（あと${days}日）` : "（終了）"}</span>`;
+    }
+    return `
+    <div class="card">
+      <div class="name">${esc(p.name)}</div>
+      <div class="row">
+        <span class="badge ${p.category}">${CAT_LABEL[p.category] || p.category}</span>
+        <span>定価 ${yen(p.retail_price)}</span>
+        <span>送料 ${yen(p.shipping_cost)}</span>
+        ${be ? `<span>損益分岐 ${yen(be)}</span>` : ""}
+        ${dl}
+      </div>
+      <div class="profit-line">${profitHtml}</div>
+      <div class="chart-box"><canvas id="chart-${p.id}"></canvas></div>
+      <div class="price-form">
+        <input type="number" id="price-${p.id}" placeholder="観測価格（円）">
+        <select id="kind-${p.id}"><option value="sold">SOLD</option><option value="listing">出品中</option></select>
+        <button class="btn small primary" onclick="addPrice(${p.id})">記録</button>
+      </div>
+      <div class="links">
+        <a href="${mercariUrl(kw, true)}" target="_blank" rel="noopener">🔴 メルカリSOLD相場を見る</a>
+        <a href="${mercariUrl(kw, false)}" target="_blank" rel="noopener">🟢 出品中を見る</a>
+      </div>
+      ${p.memo ? `<div class="sub">📝 ${esc(p.memo)}</div>` : ""}
+      <div class="card-actions">
+        <button class="btn small" onclick="openEdit(${p.id})">編集</button>
+        <button class="btn small danger" onclick="archiveProduct(${p.id})">アーカイブ</button>
+      </div>
+    </div>`;
+  }).join("");
+  products.forEach(drawProductChart);
+}
+
+function drawProductChart(p) {
+  const hist = prices.filter(x => x.product_id === p.id);
+  const ctx = document.getElementById(`chart-${p.id}`);
+  if (!ctx) return;
+  if (!hist.length) {
+    ctx.parentElement.innerHTML = `<div class="empty" style="padding-top:60px;font-size:12px">価格を記録するとチャート表示</div>`;
+    return;
+  }
+  const labels = hist.map(h => new Date(h.noted_at).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" }));
+  const soldData = hist.map(h => h.kind === "sold" ? h.price : null);
+  const listData = hist.map(h => h.kind === "listing" ? h.price : null);
+  const be = breakEven(p);
+  const datasets = [
+    { label: "SOLD", data: soldData, borderColor: "#2ecc8f", backgroundColor: "#2ecc8f", spanGaps: true, tension: 0.25, pointRadius: 3 },
+    { label: "出品中", data: listData, borderColor: "#4f8ef7", backgroundColor: "#4f8ef7", borderDash: [5, 4], spanGaps: true, tension: 0.25, pointRadius: 3 },
+  ];
+  if (be != null) datasets.push({ label: "損益分岐", data: labels.map(() => be), borderColor: "#ff6b6b", borderDash: [3, 3], pointRadius: 0, borderWidth: 1.5 });
+  charts[p.id] = new Chart(ctx, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: "#8b94a7", boxWidth: 12, font: { size: 10 } } } },
+      scales: {
+        x: { grid: { color: "#2a3245" }, ticks: { color: "#8b94a7", font: { size: 10 } } },
+        y: { grid: { color: "#2a3245" }, ticks: { color: "#8b94a7", font: { size: 10 }, callback: v => "¥" + v.toLocaleString() } },
+      },
+    },
+  });
+}
+
+// ---- 新着候補 ----
+function renderCandidates() {
+  const cats = ["all", "sneaker", "tcg", "game", "hobby", "other"];
+  document.getElementById("catFilters").innerHTML = cats.map(c => {
+    const n = c === "all" ? candidates.length : candidates.filter(x => x.category === c).length;
+    return `<button class="chip ${candFilter === c ? "active" : ""}" onclick="setFilter('${c}')">${c === "all" ? "すべて" : CAT_LABEL[c]} (${n})</button>`;
+  }).join("");
+  const list = candFilter === "all" ? candidates : candidates.filter(x => x.category === candFilter);
+  document.getElementById("cntNew").textContent = candidates.length;
+  document.getElementById("candidateList").innerHTML = list.length ? list.map(c => `
+    <div class="cand">
+      <span class="badge ${c.category}">${CAT_LABEL[c.category] || c.category}</span>
+      <div class="title">
+        <a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.title)}</a>
+        <div class="meta">${esc(c.source || "")} ${c.published_at ? "・" + new Date(c.published_at).toLocaleDateString("ja-JP") : ""}</div>
+      </div>
+      <button class="btn small primary" onclick="openTrack(${c.id})">追跡</button>
+      <button class="btn small danger" onclick="dismissCand(${c.id})">却下</button>
+    </div>`).join("") : `<div class="empty">候補なし。「いますぐ巡回」で収集できる。</div>`;
+}
+function setFilter(c) { candFilter = c; renderCandidates(); }
+
+// ---- モーダル ----
+function openModal(title) {
+  document.getElementById("modalTitle").textContent = title;
+  document.getElementById("modalBg").classList.add("show");
+}
+function closeModal() {
+  document.getElementById("modalBg").classList.remove("show");
+  editingProductId = null; trackingCandidate = null;
+  ["fName", "fRetail", "fKeyword", "fDeadline", "fMemo"].forEach(id => (document.getElementById(id).value = ""));
+  document.getElementById("fCategory").value = "other";
+  document.getElementById("fShipping").value = "750";
+}
+document.getElementById("modalBg").addEventListener("click", e => { if (e.target.id === "modalBg") closeModal(); });
+
+function openTrack(candId) {
+  const c = candidates.find(x => x.id === candId);
+  trackingCandidate = c;
+  document.getElementById("fName").value = c.title;
+  document.getElementById("fCategory").value = c.category;
+  openModal("候補を追跡商品に登録");
+}
+function openEdit(prodId) {
+  const p = products.find(x => x.id === prodId);
+  editingProductId = prodId;
+  document.getElementById("fName").value = p.name;
+  document.getElementById("fCategory").value = p.category;
+  document.getElementById("fRetail").value = p.retail_price ?? "";
+  document.getElementById("fShipping").value = String(p.shipping_cost);
+  document.getElementById("fKeyword").value = p.mercari_keyword || "";
+  document.getElementById("fDeadline").value = p.deadline || "";
+  document.getElementById("fMemo").value = p.memo || "";
+  openModal("商品を編集");
+}
+document.getElementById("btnAddManual").addEventListener("click", () => openModal("商品を手動追加"));
+
+document.getElementById("btnSave").addEventListener("click", async () => {
+  const name = document.getElementById("fName").value.trim();
+  if (!name) { toast("商品名、必須や"); return; }
+  const retail = document.getElementById("fRetail").value;
+  const body = {
+    name,
+    category: document.getElementById("fCategory").value,
+    retail_price: retail === "" ? null : parseInt(retail, 10),
+    shipping_cost: parseInt(document.getElementById("fShipping").value, 10),
+    mercari_keyword: document.getElementById("fKeyword").value.trim() || null,
+    deadline: document.getElementById("fDeadline").value || null,
+    memo: document.getElementById("fMemo").value.trim() || null,
+  };
+  try {
+    if (editingProductId) {
+      await sb(`products?id=eq.${editingProductId}`, { method: "PATCH", body: JSON.stringify(body) });
+      toast("更新した");
+    } else {
+      if (trackingCandidate) body.candidate_id = trackingCandidate.id;
+      await sb("products", { method: "POST", body: JSON.stringify(body) });
+      if (trackingCandidate) {
+        await sb(`candidates?id=eq.${trackingCandidate.id}`, { method: "PATCH", body: JSON.stringify({ status: "tracked" }) });
+      }
+      toast("追跡開始や");
+    }
+    closeModal(); await loadAll();
+  } catch (e) { toast("保存失敗: " + e.message); }
+});
+
+// ---- 操作 ----
+async function dismissCand(id) {
+  await sb(`candidates?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ status: "dismissed" }) });
+  candidates = candidates.filter(c => c.id !== id);
+  renderStats(); renderCandidates();
+}
+async function addPrice(productId) {
+  const input = document.getElementById(`price-${productId}`);
+  const price = parseInt(input.value, 10);
+  if (!price || price <= 0) { toast("価格、入れてや"); return; }
+  const kind = document.getElementById(`kind-${productId}`).value;
+  try {
+    await sb("market_prices", { method: "POST", body: JSON.stringify({ product_id: productId, price, kind }) });
+    toast(`${kind === "sold" ? "SOLD" : "出品中"}相場 ${yen(price)} 記録した`);
+    await loadAll();
+  } catch (e) { toast("記録失敗: " + e.message); }
+}
+async function archiveProduct(id) {
+  if (!confirm("この商品をアーカイブする？（データは残る）")) return;
+  await sb(`products?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ archived: true }) });
+  await loadAll();
+}
+document.getElementById("btnCollect").addEventListener("click", async () => {
+  const btn = document.getElementById("btnCollect");
+  btn.disabled = true; btn.textContent = "巡回中…";
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/collect`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON_JWT, Authorization: `Bearer ${SUPABASE_ANON_JWT}`, "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const j = await res.json();
+    toast(j.ok ? `巡回完了: ${j.fetched}件取得、新規${j.inserted}件` : "巡回失敗: " + j.error);
+    await loadAll();
+  } catch (e) { toast("巡回失敗: " + e.message); }
+  btn.disabled = false; btn.textContent = "🔄 いますぐ巡回";
+});
+
+loadAll().catch(e => toast("読込失敗: " + e.message));
+</script>
+</body>
+</html>
